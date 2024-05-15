@@ -1,48 +1,45 @@
 import { MongoClient } from 'mongodb';
 
-const host = process.env.DB_HOST || 'localhost';
-const port = process.env.DB_PORT || 27017;
-const database = process.env.DB_DATABASE || 'files_manager';
-const url = `mongodb://${host}:${port}/`;
+const HOST = process.env.DB_HOST || 'localhost';
+const PORT = process.env.DB_PORT || 27017;
+const DATABASE = process.env.DB_DATABASE || 'files_manager';
+const url = `mongodb://${HOST}:${PORT}`;
 
 class DBClient {
   constructor() {
-    this.db = null;
-    MongoClient.connect(url, { useUnifiedTopology: true })
-      .then(client => {
-        this.db = client.db(database);
-        this.db.createCollection('users');
-        this.db.createCollection('files');
-      })
-      .catch(error => {
-        console.error('Error connecting to MongoDB:', error);
-      });
+    this.client = new MongoClient(url, { useUnifiedTopology: true, useNewUrlParser: true });
+    // The unified topology engine provides better support
+    // for handling replica sets and sharded clusters.
+    // It ensures that the driver uses the most up-to-date and
+    // efficient connection management and monitoring features.
+    this.client.connect().then(() => {
+      this.db = this.client.db(`${DATABASE}`);
+    }).catch((err) => {
+      console.log(err);
+    });
   }
 
   isAlive() {
-    return !!this.db;
+    const dbstatus = this.client.on('connected', () => true);
+    if (dbstatus) {
+      return true;
+    }
+    return false;
   }
 
   async nbUsers() {
-    return this.db.collection('users').countDocuments();
-  }
-
-  async getUser(query) {
-    console.log('QUERY IN DB.JS', query);
-    try {
-      const user = await this.db.collection('users').findOne(query);
-      console.log('GET USER IN DB.JS', user);
-      return user;
-    } catch (error) {
-      console.error('Error fetching user from MongoDB:', error);
-      throw error;
-    }
+    const users = this.db.collection('users');
+    const usersNum = await users.countDocuments();
+    return usersNum;
   }
 
   async nbFiles() {
-    return this.db.collection('files').countDocuments();
+    const files = this.db.collection('files');
+    const filesNum = await files.countDocuments();
+    return filesNum;
   }
 }
 
 const dbClient = new DBClient();
-export default dbClient;
+module.exports = dbClient;
+
