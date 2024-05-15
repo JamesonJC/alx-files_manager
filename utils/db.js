@@ -8,12 +8,15 @@ const url = `mongodb://${host}:${port}/`;
 class DBClient {
   constructor() {
     this.db = null;
-    MongoClient.connect(url, { useUnifiedTopology: true }, (error, client) => {
-      if (error) console.log(error);
-      this.db = client.db(database);
-      this.db.createCollection('users');
-      this.db.createCollection('files');
-    });
+    MongoClient.connect(url, { useUnifiedTopology: true })
+      .then(client => {
+        this.db = client.db(database);
+        this.db.createCollection('users');
+        this.db.createCollection('files');
+      })
+      .catch(error => {
+        console.error('Error connecting to MongoDB:', error);
+      });
   }
 
   isAlive() {
@@ -26,9 +29,14 @@ class DBClient {
 
   async getUser(query) {
     console.log('QUERY IN DB.JS', query);
-    const user = await this.db.collection('users').findOne(query);
-    console.log('GET USER IN DB.JS', user);
-    return user;
+    try {
+      const user = await this.db.collection('users').findOne(query);
+      console.log('GET USER IN DB.JS', user);
+      return user;
+    } catch (error) {
+      console.error('Error fetching user from MongoDB:', error);
+      throw error;
+    }
   }
 
   async nbFiles() {
