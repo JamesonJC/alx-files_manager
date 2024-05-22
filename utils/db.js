@@ -1,45 +1,43 @@
 import { MongoClient } from 'mongodb';
-
-const HOST = process.env.DB_HOST || 'localhost';
-const PORT = process.env.DB_PORT || 27017;
-const DATABASE = process.env.DB_DATABASE || 'files_manager';
-const url = `mongodb://${HOST}:${PORT}`;
+// import { MongoClient } from 'mongodb/lib/mongo_client';
 
 class DBClient {
+  // A class with basic connection to a mongodb server
   constructor() {
-    this.client = new MongoClient(url, { useUnifiedTopology: true, useNewUrlParser: true });
-    // The unified topology engine provides better support
-    // for handling replica sets and sharded clusters.
-    // It ensures that the driver uses the most up-to-date and
-    // efficient connection management and monitoring features.
-    this.client.connect().then(() => {
-      this.db = this.client.db(`${DATABASE}`);
-    }).catch((err) => {
-      console.log(err);
-    });
+    const host = process.env.DB_HOST || 'localhost';
+    const port = process.env.DB_PORT || 27017;
+    const database = process.env.DB_DATABASE || 'files_manager';
+
+    const uri = `mongodb://${host}:${port}/${database}`;
+    const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+    this.client = client;
+    this.client.connect();
+    this.db = client.db(database);
   }
 
+  // checks if the mongoddb is connected
   isAlive() {
-    const dbstatus = this.client.on('connected', () => true);
-    if (dbstatus) {
-      return true;
-    }
-    return false;
+    return this.client.topology.isConnected();
   }
 
   async nbUsers() {
-    const users = this.db.collection('users');
-    const usersNum = await users.countDocuments();
-    return usersNum;
+    try {
+      const users = await this.db.collection('users').countDocuments();
+      return users;
+    } catch (err) {
+      throw new Error(`Unable to get number of users ${err.message}`);
+    }
   }
 
   async nbFiles() {
-    const files = this.db.collection('files');
-    const filesNum = await files.countDocuments();
-    return filesNum;
+    try {
+      const files = await this.db.collection('files').countDocuments();
+      return files;
+    } catch (err) {
+      throw new Error(`Unable to get number of files ${err.message}`);
+    }
   }
 }
 
 const dbClient = new DBClient();
-module.exports = dbClient;
-
+export default dbClient;
